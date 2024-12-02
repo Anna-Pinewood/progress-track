@@ -10,6 +10,13 @@ docker-compose.yml включает три сервиса:
 - web: Streamlit приложение
 
 
+## Запуск сервиса
+```bash
+# for initial run
+docker compose run --rm web python src/database/init_db.py
+docker compose up
+```
+
 ## Ответы на вопросы:
 
 > Можно ли ограничивать ресурсы (например, память или CPU) для сервисов в docker-compose.yml? Если нет, то почему, если да, то как?
