@@ -209,6 +209,8 @@ def main_app():
                         const CIRCLE_MAX_SIZE = 60;
                         const MIN_SPACING = 120;
                         const CENTER_X = 600;
+                        const TEXT_WIDTH = 400; // Maximum width for text
+                        const CHARS_PER_LINE = 50; // Approximate characters per line
 
                         // Calculate positions and sizes
                         const journeyItems = achievements.map((achievement, index) => {
@@ -237,25 +239,46 @@ def main_app():
                         line.setAttribute('stroke-dasharray', '6,6');
                         svg.appendChild(line);
 
+                        // Function to wrap text
+                        function wrapText(text, width) {
+                            const words = text.split(' ');
+                            let lines = [];
+                            let currentLine = words[0];
+
+                            for (let i = 1; i < words.length; i++) {
+                                if (currentLine.length + words[i].length + 1 <= CHARS_PER_LINE) {
+                                    currentLine += " " + words[i];
+                                } else {
+                                    lines.push(currentLine);
+                                    currentLine = words[i];
+                                }
+                            }
+                            lines.push(currentLine);
+                            return lines;
+                        }
+
                         // Create journey items
                         journeyItems.forEach(item => {
                             // Create group for each item
                             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-                            // Add text
-                            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                            text.setAttribute('x', CENTER_X - 20);
-                            text.setAttribute('y', item.y);
-                            text.setAttribute('text-anchor', 'end');
-                            text.style.fontSize = '16px';
-                            text.style.fill = '#1e293b';
-                            text.textContent = item.description;
-                            g.appendChild(text);
+                            // Wrap and add text lines
+                            const lines = wrapText(item.description, TEXT_WIDTH);
+                            lines.forEach((line, index) => {
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                text.setAttribute('x', CENTER_X - item.radius - 20);
+                                text.setAttribute('y', item.y - (lines.length - 1) * 20 / 2 + index * 20);
+                                text.setAttribute('text-anchor', 'end');
+                                text.style.fontSize = '16px';
+                                text.style.fill = '#1e293b';
+                                text.textContent = line;
+                                g.appendChild(text);
+                            });
 
                             // Add time
                             const time = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                            time.setAttribute('x', CENTER_X - 20);
-                            time.setAttribute('y', item.y + 20);
+                            time.setAttribute('x', CENTER_X - item.radius - 20);
+                            time.setAttribute('y', item.y + lines.length * 10 + 10);
                             time.setAttribute('text-anchor', 'end');
                             time.style.fontSize = '14px';
                             time.style.fill = '#64748b';

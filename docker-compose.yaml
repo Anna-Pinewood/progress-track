@@ -7,9 +7,15 @@ services:
             POSTGRES_USER: ${POSTGRES_USER:-postgres}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
             POSTGRES_DB: ${POSTGRES_DB:-postgres}
-            PGDATA: /var/lib/postgresql/data/pgdata # Explicitly set data directory
+            PGDATA: /var/lib/postgresql/data/pgdata
         volumes:
-            - postgres_data:/var/lib/postgresql/data/pgdata # Match PGDATA path
+            - postgres_data:/var/lib/postgresql/data/pgdata
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp
+            - /var/run/postgresql
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
             interval: 5s
@@ -17,17 +23,18 @@ services:
             retries: 20
         ports:
             - "5432:5432"
-        restart: "unless-stopped"
-        logging:
-            options:
-                max-size: "10m"
-                max-file: "3"
+        restart: unless-stopped
 
     web:
         build:
             context: .
             dockerfile: Dockerfile
         container_name: achievement-web
+        security_opt:
+            - no-new-privileges:true
+        read_only: true
+        tmpfs:
+            - /tmp
         ports:
             - "8501:8501"
         depends_on:
@@ -38,6 +45,7 @@ services:
             POSTGRES_USER: ${POSTGRES_USER:-postgres}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
             POSTGRES_DB: ${POSTGRES_DB:-postgres}
+        restart: unless-stopped
         command: >
             sh -c "
             echo 'Waiting for postgres...' &&
@@ -46,7 +54,6 @@ services:
             python src/database/init_db.py &&
             echo 'Starting Streamlit...' &&
             streamlit run src/main.py"
-        restart: "unless-stopped"
 
 volumes:
     postgres_data:
