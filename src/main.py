@@ -7,6 +7,8 @@ from datetime import date
 import database.handlers as handlers
 from streamlit_extras.let_it_rain import rain
 import random
+from streamlit_extras.stateful_button import button
+import time
 
 st.set_page_config(page_title="Трекер достижений")
 
@@ -19,8 +21,28 @@ if 'expanded_groups' not in st.session_state:
     st.session_state.expanded_groups = set()
 if 'show_animation' not in st.session_state:
     st.session_state.show_animation = None
+if 'group_colors' not in st.session_state:
+    st.session_state.group_colors = {}
+if 'last_level' not in st.session_state:
+    st.session_state.last_level = None
+if 'next_emoji_level' not in st.session_state:
+    st.session_state.next_emoji_level = random.randint(5, 10)
+if 'current_emoji' not in st.session_state:
+    st.session_state.current_emoji = "🏆"
 
-GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5']
+# Update the color palette with new colors
+GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', 
+                '#FFA07A', '#FF69B4', '#DDA0DD']  # Added orange, pink, and purple
+
+def get_level_emoji(level):
+    # Update next_emoji_level if we reached it
+    if level >= st.session_state.next_emoji_level:
+        emojis = ["⭐", "🚲", "🎨", "⛰️", "🗻", "🌋", "🎆", "🎯", "🎮", "🏔️"]
+        st.session_state.current_emoji = random.choice(emojis)
+        # Set next change 5-10 levels from now
+        st.session_state.next_emoji_level = level + random.randint(5, 10)
+    
+    return st.session_state.current_emoji
 
 def extract_group(description):
     if ":" in description and description.split(":")[0].strip().isupper():
@@ -42,18 +64,83 @@ def render_flag(points, color):
         </div>
     """
 
+MOTIVATION_MESSAGES = {
+    'small': [  # for points <= 15
+        "Так держать! Где фокус – там и рост.",
+        "Отличный шаг вперед! Путь в тысячу ли начинается с первого шага.",
+        "Молодец! Постоянство – ключ к совершенству.",
+        "Хороший результат! Маленькие победы создают большой успех.",
+        "Продолжай в том же духе! Капля за каплей формирует океан."
+    ],
+    'medium': [  # for points <= 30
+        "Впечатляющий результат! Успех – это лестница, по которой не взойдешь, держа руки в карманах.",
+        "Замечательная работа! Дисциплина – мост между целями и достижениями.",
+        "Отличное достижение! Твоя настойчивость вдохновляет.",
+        "Прекрасный прогресс! Каждый день – новая возможность стать лучше.",
+        "Великолепно! Успех приходит к тем, кто действует."
+    ],
+    'large': [  # for points > 30
+        "Выдающееся достижение! Мечты не работают, пока не работаешь ты.",
+        "Потрясающий результат! Твой потенциал безграничен.",
+        "Невероятная работа! Сложности – это возможности в рабочей одежде.",
+        "Грандиозно! Большие достижения состоят из маленьких побед.",
+        "Феноменально! Ты доказываешь, что невозможное возможно."
+    ]
+}
+
 def show_achievement_animation(points):
     if points <= 15:
         st.balloons()
-        st.success("Молодец, так держать!")
+        message = random.choice(MOTIVATION_MESSAGES['small'])
+        st.success(message)
     elif points <= 30:
         st.balloons()
-        rain(emoji="🥇", font_size=54, falling_speed=2, animation_length=1)
-        st.success("Отличное достижение!")
+        message = random.choice(MOTIVATION_MESSAGES['medium'])
+        rain(emoji="💎", font_size=54, falling_speed=2, animation_length=1)
+        st.success(message)
     else:
         st.balloons()
+        message = random.choice(MOTIVATION_MESSAGES['large'])
         rain(emoji="💎", font_size=54, falling_speed=2, animation_length=1)
-        st.success("Выдающееся достижение!")
+        st.success(message)
+
+def show_level_up_animation(new_level):
+    with st.empty():
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
+                <div style="text-align: center; background: linear-gradient(45deg, #FFD700, #FFA500); 
+                           padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);">
+                    <h1 style="color: white; font-size: 2.5em; margin-bottom: 10px;">🎉 НОВЫЙ УРОВЕНЬ! 🎉</h1>
+                    <h2 style="color: white; font-size: 3em;">{new_level}</h2>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        rain(emoji="⭐", font_size=54, falling_speed=5, animation_length="2s")
+        time.sleep(2)
+
+def render_level_progress(level_info):
+    progress = level_info['points_in_level'] / 60
+    return f"""
+        <div style="position: fixed; top: 70px; right: 10px; background: white; 
+                    padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
+            <div style="text-align: center; margin-bottom: 10px;">
+                <span style="font-size: 2em; font-weight: bold; color: #4CAF50;">{get_level_emoji(level_info['level'])} {level_info['level']}</span>
+                <br/>
+                <span style="font-size: 0.9em; color: #666;">уровень</span>
+            </div>
+            <div style="width: 150px; height: 10px; background: #eee; border-radius: 5px; overflow: hidden;">
+                <div style="width: {progress * 100}%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); 
+                            transition: width 0.5s ease-in-out;">
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 5px; font-size: 0.9em; color: #666;">
+                {level_info['points_in_level']}/60 очков
+            </div>
+        </div>
+    """
 
 def login_form():
     with st.form("login_form"):
@@ -83,6 +170,17 @@ def login_form():
 
 def main_app():
     st.title("Трекер достижений")
+
+    # Get and display level info
+    level_info = handlers.get_user_level_info(st.session_state.user_id)
+    st.markdown(render_level_progress(level_info), unsafe_allow_html=True)
+
+    # Check for level up
+    if st.session_state.last_level is None:
+        st.session_state.last_level = level_info['level']
+    elif level_info['level'] > st.session_state.last_level:
+        show_level_up_animation(level_info['level'])
+        st.session_state.last_level = level_info['level']
 
     if st.button("Выйти"):
         st.session_state.user_id = None
@@ -146,20 +244,38 @@ def main_app():
 
     # Group achievements
     groups = {}
-    group_colors = {}
     color_index = 0
+    available_colors = set(GROUP_COLORS)
+
+    # Remove already used colors from available_colors
+    for color in st.session_state.group_colors.values():
+        if color in available_colors:
+            available_colors.remove(color)
 
     for achievement in achievements:
         group_name, achievement_text = extract_group(achievement[1])
         if group_name not in groups:
             groups[group_name] = []
-            group_colors[group_name] = GROUP_COLORS[color_index % len(GROUP_COLORS)]
-            color_index += 1
+            # If group doesn't have a color, assign a random one from available colors
+            if group_name not in st.session_state.group_colors:
+                if available_colors:
+                    new_color = random.choice(list(available_colors))
+                    available_colors.remove(new_color)
+                    st.session_state.group_colors[group_name] = new_color
+                else:
+                    # If no colors available, pick a random one from the full palette
+                    st.session_state.group_colors[group_name] = random.choice(GROUP_COLORS)
         groups[group_name].append((achievement[0], achievement_text, achievement[2], achievement[3]))
 
-    # Display grouped achievements
+    # Clean up deleted groups from session state
+    existing_groups = set(groups.keys())
+    deleted_groups = set(st.session_state.group_colors.keys()) - existing_groups
+    for group in deleted_groups:
+        del st.session_state.group_colors[group]
+
+    # Display grouped achievements using stored colors
     for group_name, group_achievements in groups.items():
-        color = group_colors[group_name]
+        color = st.session_state.group_colors[group_name]
 
         col1, col2 = st.columns([0.1, 0.9])
         with col1:

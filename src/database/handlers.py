@@ -3,6 +3,7 @@ import psycopg2
 import hashlib
 import os
 
+
 def get_database_connection():
     """Connect to the PostgreSQL database server."""
     return psycopg2.connect(
@@ -12,22 +13,24 @@ def get_database_connection():
         password=os.getenv("POSTGRES_PASSWORD", "postgres")
     )
 
+
 def hash_password(password):
     """Hash password using SHA-256."""
     return hashlib.sha256(password.encode()).hexdigest()
+
 
 def register_user(username, password):
     """Register a new user."""
     conn = get_database_connection()
     cur = conn.cursor()
-    
+
     # Check if user exists
     cur.execute("SELECT id FROM users WHERE username = %s", (username,))
     if cur.fetchone():
         cur.close()
         conn.close()
         return False, "Пользователь уже существует"
-    
+
     # Add new user
     hashed_password = hash_password(password)
     cur.execute(
@@ -39,11 +42,12 @@ def register_user(username, password):
     conn.close()
     return True, "Регистрация успешна"
 
+
 def verify_user(username, password):
     """Verify user credentials."""
     conn = get_database_connection()
     cur = conn.cursor()
-    
+
     hashed_password = hash_password(password)
     cur.execute(
         "SELECT id FROM users WHERE username = %s AND password_hash = %s",
@@ -53,6 +57,7 @@ def verify_user(username, password):
     cur.close()
     conn.close()
     return user[0] if user else None
+
 
 def add_achievement(description, points, user_id):
     """Add an achievement to the database."""
@@ -65,6 +70,7 @@ def add_achievement(description, points, user_id):
     conn.commit()
     cur.close()
     conn.close()
+
 
 def get_achievements(user_id):
     """Get all achievements for a specific user."""
@@ -81,6 +87,7 @@ def get_achievements(user_id):
     conn.close()
     return achievements
 
+
 def delete_all_achievements(user_id):
     """Delete all achievements for a specific user."""
     conn = get_database_connection()
@@ -90,14 +97,40 @@ def delete_all_achievements(user_id):
     cur.close()
     conn.close()
 
+
 def delete_achievement(achievement_id, user_id):
     """Delete a specific achievement by its ID and user_id."""
     conn = get_database_connection()
     cur = conn.cursor()
     cur.execute(
-        "DELETE FROM achievements WHERE id = %s AND user_id = %s", 
+        "DELETE FROM achievements WHERE id = %s AND user_id = %s",
         (achievement_id, user_id)
     )
     conn.commit()
     cur.close()
     conn.close()
+
+
+def get_user_points(user_id):
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COALESCE(SUM(points), 0) as total_points 
+        FROM achievements 
+        WHERE user_id = %s
+    """, (user_id,))
+    total_points = cursor.fetchone()[0]
+    conn.close()
+    return total_points
+
+
+def get_user_level_info(user_id):
+    total_points = get_user_points(user_id)
+    level = total_points // 60 + 1
+    points_in_level = total_points % 60
+    return {
+        'level': level,
+        'points_in_level': points_in_level,
+        'points_to_next': 60 - points_in_level,
+        'total_points': total_points
+    }
