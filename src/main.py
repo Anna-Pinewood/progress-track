@@ -9,8 +9,27 @@ from streamlit_extras.let_it_rain import rain
 import random
 from streamlit_extras.stateful_button import button
 import time
+from consts import QUOTES_FILE
 
 st.set_page_config(page_title="Трекер достижений")
+
+
+def load_quotes():
+    """Load quotes from the quotes.txt file"""
+    quotes_path = Path(
+        "/app/data") / QUOTES_FILE  # Updated path to mounted volume
+    try:
+        with open(quotes_path, 'r', encoding='utf-8') as file:
+            return [line.strip() for line in file if line.strip()]
+    except FileNotFoundError:
+        return ["Файл с цитатами не найден"]
+
+
+def get_random_quote():
+    """Get a random quote from the loaded quotes"""
+    quotes = load_quotes()
+    return random.choice(quotes)
+
 
 # Initialize session state
 if 'user_id' not in st.session_state:
@@ -29,10 +48,14 @@ if 'next_emoji_level' not in st.session_state:
     st.session_state.next_emoji_level = random.randint(5, 10)
 if 'current_emoji' not in st.session_state:
     st.session_state.current_emoji = "🏆"
+if 'current_quote' not in st.session_state:
+    st.session_state.current_quote = get_random_quote()
+
 
 # Update the color palette with new colors
-GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', 
+GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5',
                 '#FFA07A', '#FF69B4', '#DDA0DD']  # Added orange, pink, and purple
+
 
 def get_level_emoji(level):
     # Update next_emoji_level if we reached it
@@ -41,13 +64,15 @@ def get_level_emoji(level):
         st.session_state.current_emoji = random.choice(emojis)
         # Set next change 5-10 levels from now
         st.session_state.next_emoji_level = level + random.randint(5, 10)
-    
+
     return st.session_state.current_emoji
+
 
 def extract_group(description):
     if ":" in description and description.split(":")[0].strip().isupper():
         return description.split(":")[0].strip(), description.split(":", 1)[1].strip()
     return "ДРУГОЕ", description
+
 
 def render_flag(points, color):
     base_height = 40
@@ -63,6 +88,7 @@ def render_flag(points, color):
             </div>
         </div>
     """
+
 
 MOTIVATION_MESSAGES = {
     'small': [  # for points <= 15
@@ -88,6 +114,7 @@ MOTIVATION_MESSAGES = {
     ]
 }
 
+
 def show_achievement_animation(points):
     if points <= 15:
         st.balloons()
@@ -103,6 +130,7 @@ def show_achievement_animation(points):
         message = random.choice(MOTIVATION_MESSAGES['large'])
         rain(emoji="💎", font_size=54, falling_speed=2, animation_length=1)
         st.success(message)
+
 
 def show_level_up_animation(new_level):
     with st.empty():
@@ -120,6 +148,7 @@ def show_level_up_animation(new_level):
         )
         rain(emoji="⭐", font_size=54, falling_speed=5, animation_length="2s")
         time.sleep(2)
+
 
 def render_level_progress(level_info):
     progress = level_info['points_in_level'] / 60
@@ -141,6 +170,7 @@ def render_level_progress(level_info):
             </div>
         </div>
     """
+
 
 def login_form():
     with st.form("login_form"):
@@ -168,8 +198,17 @@ def login_form():
             else:
                 st.error(message)
 
+
 def main_app():
     st.title("Трекер достижений")
+    # Quote section
+    quote_col, button_col = st.columns([5, 1])
+    with quote_col:
+        st.markdown(f"*{st.session_state.current_quote}*")
+    with button_col:
+        if st.button("🔄"):
+            st.session_state.current_quote = get_random_quote()
+            st.rerun()
 
     # Get and display level info
     level_info = handlers.get_user_level_info(st.session_state.user_id)
@@ -187,8 +226,10 @@ def main_app():
         st.rerun()
 
     with st.form(f"achievement_form_{st.session_state.form_key}"):
-        description = st.text_input("Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}")
-        points = st.slider("Оценка вклада", min_value=5, max_value=50, value=15, key=f"points_{st.session_state.form_key}")
+        description = st.text_input(
+            "Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}")
+        points = st.slider("Оценка вклада", min_value=5, max_value=50,
+                           value=15, key=f"points_{st.session_state.form_key}")
         submitted = st.form_submit_button("Добавить достижение")
 
     if submitted and description:
@@ -235,10 +276,10 @@ def main_app():
             with st.expander("Текст для копирования", expanded=True):
                 st.code(text_content, language=None)
                 st.button("Копировать", type="primary",
-                         on_click=lambda: st.write(
-                             f'<script>navigator.clipboard.writeText(`{text_content}`)</script>',
-                             unsafe_allow_html=True
-                         ))
+                          on_click=lambda: st.write(
+                              f'<script>navigator.clipboard.writeText(`{text_content}`)</script>',
+                              unsafe_allow_html=True
+                          ))
 
     achievements = handlers.get_achievements(st.session_state.user_id)
 
@@ -264,12 +305,15 @@ def main_app():
                     st.session_state.group_colors[group_name] = new_color
                 else:
                     # If no colors available, pick a random one from the full palette
-                    st.session_state.group_colors[group_name] = random.choice(GROUP_COLORS)
-        groups[group_name].append((achievement[0], achievement_text, achievement[2], achievement[3]))
+                    st.session_state.group_colors[group_name] = random.choice(
+                        GROUP_COLORS)
+        groups[group_name].append(
+            (achievement[0], achievement_text, achievement[2], achievement[3]))
 
     # Clean up deleted groups from session state
     existing_groups = set(groups.keys())
-    deleted_groups = set(st.session_state.group_colors.keys()) - existing_groups
+    deleted_groups = set(
+        st.session_state.group_colors.keys()) - existing_groups
     for group in deleted_groups:
         del st.session_state.group_colors[group]
 
@@ -299,11 +343,14 @@ def main_app():
                     st.write(f"**{text}**")
                     st.caption(f"Добавлено: {created_at}")
                 with col2:
-                    st.markdown(render_flag(points, color), unsafe_allow_html=True)
+                    st.markdown(render_flag(points, color),
+                                unsafe_allow_html=True)
                 with col3:
                     if st.button("🗑️", key=f"delete_{achievement_id}"):
-                        handlers.delete_achievement(achievement_id, st.session_state.user_id)
-                        remaining_achievements = [a for a in group_achievements if a[0] != achievement_id]
+                        handlers.delete_achievement(
+                            achievement_id, st.session_state.user_id)
+                        remaining_achievements = [
+                            a for a in group_achievements if a[0] != achievement_id]
                         if not remaining_achievements:
                             st.session_state.expanded_groups.remove(group_name)
                         st.rerun()
@@ -311,8 +358,8 @@ def main_app():
             st.session_state.expanded_groups.discard(group_name)
 
     def create_daily_journey_html(achievements):
-            """Create an HTML string for the daily journey visualization."""
-            html = """
+        """Create an HTML string for the daily journey visualization."""
+        html = """
             <div id="daily-journey" style="font-family: sans-serif; padding: 20px;">
                 <script>
                     const achievements = ACHIEVEMENTS_PLACEHOLDER;
@@ -437,36 +484,38 @@ def main_app():
             </div>
             """
 
-            # Insert the achievements data
-            achievements_json = json.dumps(achievements)
-            html = html.replace('ACHIEVEMENTS_PLACEHOLDER', achievements_json)
+        # Insert the achievements data
+        achievements_json = json.dumps(achievements)
+        html = html.replace('ACHIEVEMENTS_PLACEHOLDER', achievements_json)
 
-            return html
+        return html
 
         # In your main_app function, update the daily journey button handler:
     if st.button("📅 Daily Journey"):
-            achievements = handlers.get_achievements(st.session_state.user_id)
-            today = date.today()
-            daily_achievements = [
-                {
-                    "description": desc,
-                    "points": points,
-                    "created_at": created_at.isoformat()
-                }
-                for _, desc, points, created_at in achievements
-                if created_at.date() == today
-            ]
+        achievements = handlers.get_achievements(st.session_state.user_id)
+        today = date.today()
+        daily_achievements = [
+            {
+                "description": desc,
+                "points": points,
+                "created_at": created_at.isoformat()
+            }
+            for _, desc, points, created_at in achievements
+            if created_at.date() == today
+        ]
 
-            if not daily_achievements:
-                st.info("No achievements recorded today yet!")
-            else:
-                st.subheader("Your Journey Today")
-                html_content = create_daily_journey_html(daily_achievements)
-                st.components.v1.html(
-                    html_content,
-                    height=len(daily_achievements) * 120 + 100,
-                    scrolling=True
-                )
+        if not daily_achievements:
+            st.info("No achievements recorded today yet!")
+        else:
+            st.subheader("Your Journey Today")
+            html_content = create_daily_journey_html(daily_achievements)
+            st.components.v1.html(
+                html_content,
+                height=len(daily_achievements) * 120 + 100,
+                scrolling=True
+            )
+
+
 # Main flow
 if st.session_state.user_id is None:
     login_form()

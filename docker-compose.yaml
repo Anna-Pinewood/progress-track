@@ -7,34 +7,21 @@ services:
             POSTGRES_USER: ${POSTGRES_USER:-postgres}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
             POSTGRES_DB: ${POSTGRES_DB:-postgres}
-            PGDATA: /var/lib/postgresql/data/pgdata
         volumes:
-            - postgres_data:/var/lib/postgresql/data/pgdata
-        security_opt:
-            - no-new-privileges:true
-        read_only: true
-        tmpfs:
-            - /tmp
-            - /var/run/postgresql
+            - postgres_data:/var/lib/postgresql/data
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-            interval: 5s
-            timeout: 5s
-            retries: 20
+            test: pg_isready -U ${POSTGRES_USER:-postgres}
+            interval: 2s
+            timeout: 3s
+            retries: 40
         ports:
             - "5432:5432"
-        restart: unless-stopped
 
     web:
         build:
             context: .
             dockerfile: Dockerfile
         container_name: achievement-web
-        security_opt:
-            - no-new-privileges:true
-        read_only: true
-        tmpfs:
-            - /tmp
         ports:
             - "8501:8501"
         depends_on:
@@ -45,15 +32,15 @@ services:
             POSTGRES_USER: ${POSTGRES_USER:-postgres}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
             POSTGRES_DB: ${POSTGRES_DB:-postgres}
-        restart: unless-stopped
+        volumes:
+            - ./data:/app/data  # Mount the data directory from project root
         command: >
-            sh -c "
-            echo 'Waiting for postgres...' &&
-            sleep 5 &&
-            echo 'Running database initialization...' &&
-            python src/database/init_db.py &&
-            echo 'Starting Streamlit...' &&
-            streamlit run src/main.py"
+            sh -c "python src/database/init_db.py &&
+                   streamlit run src/main.py"
+
+networks:
+    default:
+        name: achievement-network
 
 volumes:
     postgres_data:
