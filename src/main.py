@@ -20,7 +20,7 @@ def load_quotes():
         "/app/data") / QUOTES_FILE  # Updated path to mounted volume
     try:
         with open(quotes_path, 'r', encoding='utf-8') as file:
-            return [line.strip() for line in file if line.strip()]
+            return [line.strip() for line in file if line.strip() if line.strip()]
     except FileNotFoundError:
         return ["Файл с цитатами не найден"]
 
@@ -268,9 +268,9 @@ def main_app():
             for group_name in sorted(groups.keys()):
                 group_achievements = groups[group_name]
                 total_points = sum(points for _, points in group_achievements)
-                text_content += f"{group_name} (Всего баллов: {total_points}):\n"
+                text_content += f"- {group_name} (Всего баллов: {total_points}):\n"
                 for achievement_text, points in group_achievements:
-                    text_content += f"  - {achievement_text} ({points} pts)\n"
+                    text_content += f"  - {achievement_text}\n"
                 text_content += "\n"
 
             with st.expander("Текст для копирования", expanded=True):
