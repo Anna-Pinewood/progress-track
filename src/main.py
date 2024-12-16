@@ -530,13 +530,33 @@ def main_app():
 
         if st.button("Sum up"):
             if selected_category and summary_text:
-                handlers.delete_achievements_by_category(selected_category, st.session_state.user_id, today)
-                handlers.add_achievement(f"{selected_category}: {summary_text}", 0, st.session_state.user_id)
-                st.success("Summary added successfully!")
-                st.rerun()
+                # Calculate total points for the category today
+                total_points = sum(
+                    ach[2] for ach in daily_achievements 
+                    if extract_group(ach[1])[0] == selected_category
+                )
+                
+                # Split text into individual achievements
+                summary_items = [item.strip() for item in summary_text.split('\n') if item.strip()]
+                
+                if summary_items:
+                    # Delete old achievements
+                    handlers.delete_achievements_by_category(selected_category, st.session_state.user_id, today)
+                    
+                    # Distribute points evenly among new items
+                    points_per_item = total_points // len(summary_items)
+                    remaining_points = total_points % len(summary_items)
+                    
+                    # Add new achievements
+                    for i, item in enumerate(summary_items):
+                        # Add remaining points to first item
+                        item_points = points_per_item + (remaining_points if i == 0 else 0)
+                        handlers.add_achievement(f"{selected_category}: {item}", item_points, st.session_state.user_id)
+                    
+                    st.success("Summary added successfully!")
+                    st.rerun()
     else:
         st.info("No achievements recorded today yet!")
-
 
 # Main flow
 if st.session_state.user_id is None:
