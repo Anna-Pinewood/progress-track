@@ -34,6 +34,7 @@ if 'current_emoji' not in st.session_state:
 if 'current_quote' not in st.session_state:
     st.session_state.current_quote = get_random_quote()
 
+
 def login_form():
     with st.form("login_form"):
         username = st.text_input("Имя пользователя")
@@ -88,8 +89,8 @@ def main_app():
         st.rerun()
 
     with st.form(f"achievement_form_{st.session_state.form_key}"):
-        description = st.text_input(
-            "Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}")
+        description = st.text_area(
+            "Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}", height=70)
         points = st.slider("Оценка вклада", min_value=5, max_value=50,
                            value=15, key=f"points_{st.session_state.form_key}")
         submitted = st.form_submit_button("Добавить достижение")
