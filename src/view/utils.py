@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 import random
 import streamlit as st
@@ -21,7 +22,9 @@ def get_random_quote():
     return random.choice(quotes)
 
 
-
+# Moscow time instead of UTC
+def adjust_time(timestamp):
+    return timestamp + timedelta(hours=3)
 
 
 def extract_group(description):

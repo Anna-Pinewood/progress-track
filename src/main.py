@@ -2,7 +2,6 @@ import json
 import os
 from pathlib import Path
 import streamlit as st
-from datetime import datetime
 from datetime import date
 import database.handlers as handlers
 from streamlit_extras.let_it_rain import rain
@@ -11,7 +10,7 @@ from streamlit_extras.stateful_button import button
 from view.animations import show_achievement_animation, show_level_up_animation
 from view.render import create_daily_journey_html, render_flag, render_level_progress
 from view.style_and_content_consts import GROUP_COLORS
-from view.utils import extract_group, get_random_quote
+from view.utils import adjust_time, extract_group, get_random_quote
 
 st.set_page_config(page_title="Трекер достижений")
 
@@ -34,7 +33,6 @@ if 'current_emoji' not in st.session_state:
     st.session_state.current_emoji = "🏆"
 if 'current_quote' not in st.session_state:
     st.session_state.current_quote = get_random_quote()
-
 
 def login_form():
     with st.form("login_form"):
@@ -205,7 +203,7 @@ def main_app():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.write(f"**{text}**")
-                    st.caption(f"Добавлено: {created_at}")
+                    st.caption(f"Добавлено: {adjust_time(created_at)}")
                 with col2:
                     st.markdown(render_flag(points, color),
                                 unsafe_allow_html=True)
@@ -229,7 +227,7 @@ def main_app():
             {
                 "description": desc,
                 "points": points,
-                "created_at": created_at.isoformat()
+                "created_at": adjust_time(created_at).isoformat()
             }
             for _, desc, points, created_at in achievements
             if created_at.date() == today
