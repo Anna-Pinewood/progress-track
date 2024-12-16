@@ -60,7 +60,7 @@ GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5'
 def get_level_emoji(level):
     # Update next_emoji_level if we reached it
     if level >= st.session_state.next_emoji_level:
-        emojis = ["⭐", "🚲", "🎨", "⛰️", "🗻", "🌋", "🎆", "🎯", "🎮", "🏔️"]
+        emojis = ["⭐", "🚲", "🎨", "⛰️", "🗻", "🌋", "🎆", "🎯", "🎮", "🏔️", "🏄‍♀️", "🤸", "👱🏻‍♀️"]
         st.session_state.current_emoji = random.choice(emojis)
         # Set next change 5-10 levels from now
         st.session_state.next_emoji_level = level + random.randint(5, 10)
@@ -514,6 +514,28 @@ def main_app():
                 height=len(daily_achievements) * 120 + 100,
                 scrolling=True
             )
+
+    # Add "To sum up" section
+    st.subheader("To sum up")
+    achievements = handlers.get_achievements(st.session_state.user_id)
+    today = date.today()
+    daily_achievements = [
+        achievement for achievement in achievements if achievement[3].date() == today
+    ]
+    categories = list(set(extract_group(achievement[1])[0] for achievement in daily_achievements))
+
+    if categories:
+        selected_category = st.selectbox("Select category", categories)
+        summary_text = st.text_area("Write your summary")
+
+        if st.button("Sum up"):
+            if selected_category and summary_text:
+                handlers.delete_achievements_by_category(selected_category, st.session_state.user_id, today)
+                handlers.add_achievement(f"{selected_category}: {summary_text}", 0, st.session_state.user_id)
+                st.success("Summary added successfully!")
+                st.rerun()
+    else:
+        st.info("No achievements recorded today yet!")
 
 
 # Main flow
