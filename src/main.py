@@ -8,28 +8,12 @@ import database.handlers as handlers
 from streamlit_extras.let_it_rain import rain
 import random
 from streamlit_extras.stateful_button import button
-import time
-from consts import QUOTES_FILE
+from view.animations import show_achievement_animation, show_level_up_animation
+from view.render import create_daily_journey_html, render_flag, render_level_progress
+from view.style_and_content_consts import GROUP_COLORS
+from view.utils import extract_group, get_random_quote
 
 st.set_page_config(page_title="Трекер достижений")
-
-
-def load_quotes():
-    """Load quotes from the quotes.txt file"""
-    quotes_path = Path(
-        "/app/data") / QUOTES_FILE  # Updated path to mounted volume
-    try:
-        with open(quotes_path, 'r', encoding='utf-8') as file:
-            return [line.strip() for line in file if line.strip() if line.strip()]
-    except FileNotFoundError:
-        return ["Файл с цитатами не найден"]
-
-
-def get_random_quote():
-    """Get a random quote from the loaded quotes"""
-    quotes = load_quotes()
-    return random.choice(quotes)
-
 
 # Initialize session state
 if 'user_id' not in st.session_state:
@@ -50,126 +34,6 @@ if 'current_emoji' not in st.session_state:
     st.session_state.current_emoji = "🏆"
 if 'current_quote' not in st.session_state:
     st.session_state.current_quote = get_random_quote()
-
-
-# Update the color palette with new colors
-GROUP_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5',
-                '#FFA07A', '#FF69B4', '#DDA0DD']  # Added orange, pink, and purple
-
-
-def get_level_emoji(level):
-    # Update next_emoji_level if we reached it
-    if level >= st.session_state.next_emoji_level:
-        emojis = ["⭐", "🚲", "🎨", "⛰️", "🗻", "🌋", "🎆", "🎯", "🎮", "🏔️", "🏄‍♀️", "🤸", "👱🏻‍♀️"]
-        st.session_state.current_emoji = random.choice(emojis)
-        # Set next change 5-10 levels from now
-        st.session_state.next_emoji_level = level + random.randint(5, 10)
-
-    return st.session_state.current_emoji
-
-
-def extract_group(description):
-    if ":" in description and description.split(":")[0].strip().isupper():
-        return description.split(":")[0].strip(), description.split(":", 1)[1].strip()
-    return "ДРУГОЕ", description
-
-
-def render_flag(points, color):
-    base_height = 40
-    pole_height = base_height + points
-    return f"""
-        <div style="position: relative; width: 30px; height: {pole_height}px; margin: 5px;">
-            <div style="position: absolute; left: 15px; top: 0; width: 2px; height: {pole_height}px; background-color: #666;">
-            </div>
-            <div style="position: absolute; left: 17px; top: 5px; width: 0; height: 0;
-                        border-left: {20}px solid {color};
-                        border-top: 10px solid transparent;
-                        border-bottom: 10px solid transparent;">
-            </div>
-        </div>
-    """
-
-
-MOTIVATION_MESSAGES = {
-    'small': [  # for points <= 15
-        "Так держать! Где фокус – там и рост.",
-        "Отличный шаг вперед! Путь в тысячу ли начинается с первого шага.",
-        "Молодец! Постоянство – ключ к совершенству.",
-        "Хороший результат! Маленькие победы создают большой успех.",
-        "Продолжай в том же духе! Капля за каплей формирует океан."
-    ],
-    'medium': [  # for points <= 30
-        "Впечатляющий результат! Успех – это лестница, по которой не взойдешь, держа руки в карманах.",
-        "Замечательная работа! Дисциплина – мост между целями и достижениями.",
-        "Отличное достижение! Твоя настойчивость вдохновляет.",
-        "Прекрасный прогресс! Каждый день – новая возможность стать лучше.",
-        "Великолепно! Успех приходит к тем, кто действует."
-    ],
-    'large': [  # for points > 30
-        "Выдающееся достижение! Мечты не работают, пока не работаешь ты.",
-        "Потрясающий результат! Твой потенциал безграничен.",
-        "Невероятная работа! Сложности – это возможности в рабочей одежде.",
-        "Грандиозно! Большие достижения состоят из маленьких побед.",
-        "Феноменально! Ты доказываешь, что невозможное возможно."
-    ]
-}
-
-
-def show_achievement_animation(points):
-    if points <= 15:
-        st.balloons()
-        message = random.choice(MOTIVATION_MESSAGES['small'])
-        st.success(message)
-    elif points <= 30:
-        st.balloons()
-        message = random.choice(MOTIVATION_MESSAGES['medium'])
-        rain(emoji="💎", font_size=54, falling_speed=2, animation_length=1)
-        st.success(message)
-    else:
-        st.balloons()
-        message = random.choice(MOTIVATION_MESSAGES['large'])
-        rain(emoji="💎", font_size=54, falling_speed=2, animation_length=1)
-        st.success(message)
-
-
-def show_level_up_animation(new_level):
-    with st.empty():
-        st.markdown(
-            f"""
-            <div style="display: flex; justify-content: center; align-items: center; height: 200px;">
-                <div style="text-align: center; background: linear-gradient(45deg, #FFD700, #FFA500); 
-                           padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);">
-                    <h1 style="color: white; font-size: 2.5em; margin-bottom: 10px;">🎉 НОВЫЙ УРОВЕНЬ! 🎉</h1>
-                    <h2 style="color: white; font-size: 3em;">{new_level}</h2>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        rain(emoji="⭐", font_size=54, falling_speed=5, animation_length="2s")
-        time.sleep(2)
-
-
-def render_level_progress(level_info):
-    progress = level_info['points_in_level'] / 60
-    return f"""
-        <div style="position: fixed; top: 70px; right: 10px; background: white; 
-                    padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1000;">
-            <div style="text-align: center; margin-bottom: 10px;">
-                <span style="font-size: 2em; font-weight: bold; color: #4CAF50;">{get_level_emoji(level_info['level'])} {level_info['level']}</span>
-                <br/>
-                <span style="font-size: 0.9em; color: #666;">уровень</span>
-            </div>
-            <div style="width: 150px; height: 10px; background: #eee; border-radius: 5px; overflow: hidden;">
-                <div style="width: {progress * 100}%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); 
-                            transition: width 0.5s ease-in-out;">
-                </div>
-            </div>
-            <div style="text-align: center; margin-top: 5px; font-size: 0.9em; color: #666;">
-                {level_info['points_in_level']}/60 очков
-            </div>
-        </div>
-    """
 
 
 def login_form():
@@ -357,139 +221,6 @@ def main_app():
         else:
             st.session_state.expanded_groups.discard(group_name)
 
-    def create_daily_journey_html(achievements):
-        """Create an HTML string for the daily journey visualization."""
-        html = """
-            <div id="daily-journey" style="font-family: sans-serif; padding: 20px;">
-                <script>
-                    const achievements = ACHIEVEMENTS_PLACEHOLDER;
-
-                    function createJourney() {
-                        const container = document.getElementById('daily-journey');
-                        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-
-                        const CIRCLE_BASE_SIZE = 30;
-                        const CIRCLE_MAX_SIZE = 60;
-                        const MIN_SPACING = 120;
-                        const CENTER_X = 600;
-                        const TEXT_WIDTH = 400; // Maximum width for text
-                        const CHARS_PER_LINE = 50; // Approximate characters per line
-
-                        // Calculate positions and sizes
-                        const journeyItems = achievements.map((achievement, index) => {
-                            const radius = CIRCLE_BASE_SIZE + (achievement.points / 50) * (CIRCLE_MAX_SIZE - CIRCLE_BASE_SIZE);
-                            const y = index * MIN_SPACING + radius + 40;
-                            return { ...achievement, y, radius };
-                        });
-
-                        const height = journeyItems.length > 0
-                            ? journeyItems[journeyItems.length - 1].y + CIRCLE_MAX_SIZE
-                            : 200;
-
-                        // Set SVG attributes
-                        svg.setAttribute('width', '100%');
-                        svg.setAttribute('height', height);
-                        svg.style.maxWidth = '800px';
-
-                        // Create dotted line
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', CENTER_X);
-                        line.setAttribute('y1', '20');
-                        line.setAttribute('x2', CENTER_X);
-                        line.setAttribute('y2', height - 20);
-                        line.setAttribute('stroke', '#e2e8f0');
-                        line.setAttribute('stroke-width', '2');
-                        line.setAttribute('stroke-dasharray', '6,6');
-                        svg.appendChild(line);
-
-                        // Function to wrap text
-                        function wrapText(text, width) {
-                            const words = text.split(' ');
-                            let lines = [];
-                            let currentLine = words[0];
-
-                            for (let i = 1; i < words.length; i++) {
-                                if (currentLine.length + words[i].length + 1 <= CHARS_PER_LINE) {
-                                    currentLine += " " + words[i];
-                                } else {
-                                    lines.push(currentLine);
-                                    currentLine = words[i];
-                                }
-                            }
-                            lines.push(currentLine);
-                            return lines;
-                        }
-
-                        // Create journey items
-                        journeyItems.forEach(item => {
-                            // Create group for each item
-                            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-                            // Wrap and add text lines
-                            const lines = wrapText(item.description, TEXT_WIDTH);
-                            lines.forEach((line, index) => {
-                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                text.setAttribute('x', CENTER_X - item.radius - 20);
-                                text.setAttribute('y', item.y - (lines.length - 1) * 20 / 2 + index * 20);
-                                text.setAttribute('text-anchor', 'end');
-                                text.style.fontSize = '16px';
-                                text.style.fill = '#1e293b';
-                                text.textContent = line;
-                                g.appendChild(text);
-                            });
-
-                            // Add time
-                            const time = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                            time.setAttribute('x', CENTER_X - item.radius - 20);
-                            time.setAttribute('y', item.y + lines.length * 10 + 10);
-                            time.setAttribute('text-anchor', 'end');
-                            time.style.fontSize = '14px';
-                            time.style.fill = '#64748b';
-                            time.textContent = new Date(item.created_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
-                            g.appendChild(time);
-
-                            // Add circle
-                            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                            circle.setAttribute('cx', CENTER_X);
-                            circle.setAttribute('cy', item.y);
-                            circle.setAttribute('r', item.radius);
-                            circle.setAttribute('fill', '#60a5fa');
-                            circle.setAttribute('fill-opacity', '0.9');
-                            g.appendChild(circle);
-
-                            // Add points
-                            const points = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                            points.setAttribute('x', CENTER_X);
-                            points.setAttribute('y', item.y);
-                            points.setAttribute('text-anchor', 'middle');
-                            points.setAttribute('dominant-baseline', 'middle');
-                            points.style.fill = 'white';
-                            points.style.fontSize = '16px';
-                            points.style.fontWeight = 'bold';
-                            points.textContent = item.points;
-                            g.appendChild(points);
-
-                            svg.appendChild(g);
-                        });
-
-                        container.appendChild(svg);
-                    }
-
-                    // Create visualization when the page loads
-                    window.onload = createJourney;
-                </script>
-            </div>
-            """
-
-        # Insert the achievements data
-        achievements_json = json.dumps(achievements)
-        html = html.replace('ACHIEVEMENTS_PLACEHOLDER', achievements_json)
-
-        return html
-
         # In your main_app function, update the daily journey button handler:
     if st.button("📅 Daily Journey"):
         achievements = handlers.get_achievements(st.session_state.user_id)
@@ -522,7 +253,8 @@ def main_app():
     daily_achievements = [
         achievement for achievement in achievements if achievement[3].date() == today
     ]
-    categories = list(set(extract_group(achievement[1])[0] for achievement in daily_achievements))
+    categories = list(set(extract_group(achievement[1])[
+                      0] for achievement in daily_achievements))
 
     if categories:
         selected_category = st.selectbox("Select category", categories)
@@ -532,31 +264,36 @@ def main_app():
             if selected_category and summary_text:
                 # Calculate total points for the category today
                 total_points = sum(
-                    ach[2] for ach in daily_achievements 
+                    ach[2] for ach in daily_achievements
                     if extract_group(ach[1])[0] == selected_category
                 )
-                
+
                 # Split text into individual achievements
-                summary_items = [item.strip() for item in summary_text.split('\n') if item.strip()]
-                
+                summary_items = [item.strip()
+                                 for item in summary_text.split('\n') if item.strip()]
+
                 if summary_items:
                     # Delete old achievements
-                    handlers.delete_achievements_by_category(selected_category, st.session_state.user_id, today)
-                    
+                    handlers.delete_achievements_by_category(
+                        selected_category, st.session_state.user_id, today)
+
                     # Distribute points evenly among new items
                     points_per_item = total_points // len(summary_items)
                     remaining_points = total_points % len(summary_items)
-                    
+
                     # Add new achievements
                     for i, item in enumerate(summary_items):
                         # Add remaining points to first item
-                        item_points = points_per_item + (remaining_points if i == 0 else 0)
-                        handlers.add_achievement(f"{selected_category}: {item}", item_points, st.session_state.user_id)
-                    
+                        item_points = points_per_item + \
+                            (remaining_points if i == 0 else 0)
+                        handlers.add_achievement(
+                            f"{selected_category}: {item}", item_points, st.session_state.user_id)
+
                     st.success("Summary added successfully!")
                     st.rerun()
     else:
         st.info("No achievements recorded today yet!")
+
 
 # Main flow
 if st.session_state.user_id is None:
