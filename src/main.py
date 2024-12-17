@@ -249,11 +249,22 @@ def main_app():
     st.subheader("To sum up")
     achievements = handlers.get_achievements(st.session_state.user_id)
     today = date.today()
-    daily_achievements = [
-        achievement for achievement in achievements if achievement[3].date() == today
+    
+    # Add date range selection
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("From date", value=today)
+    with col2:
+        end_date = st.date_input("To date", value=today)
+
+    # Filter achievements by date range
+    filtered_achievements = [
+        achievement for achievement in achievements 
+        if start_date <= achievement[3].date() <= end_date
     ]
-    categories = list(set(extract_group(achievement[1])[
-                      0] for achievement in daily_achievements))
+    
+    categories = list(set(extract_group(achievement[1])[0] 
+                     for achievement in filtered_achievements))
 
     if categories:
         selected_category = st.selectbox("Select category", categories)
@@ -261,26 +272,26 @@ def main_app():
 
         if st.button("Sum up"):
             if selected_category and summary_text:
-                # Calculate total points for the category today
+                # Calculate total points for the category within date range
                 total_points = sum(
-                    ach[2] for ach in daily_achievements
+                    ach[2] for ach in filtered_achievements
                     if extract_group(ach[1])[0] == selected_category
                 )
 
                 # Split text into individual achievements
                 summary_items = [item.strip()
-                                 for item in summary_text.split('\n') if item.strip()]
+                             for item in summary_text.split('\n') if item.strip()]
 
                 if summary_items:
-                    # Delete old achievements
+                    # Delete old achievements in the category for selected date range
                     handlers.delete_achievements_by_category(
-                        selected_category, st.session_state.user_id, today)
+                        selected_category, st.session_state.user_id, start_date, end_date)
 
                     # Distribute points evenly among new items
                     points_per_item = total_points // len(summary_items)
                     remaining_points = total_points % len(summary_items)
 
-                    # Add new achievements
+                    # Add new achievements with today's date
                     for i, item in enumerate(summary_items):
                         # Add remaining points to first item
                         item_points = points_per_item + \
@@ -291,8 +302,7 @@ def main_app():
                     st.success("Summary added successfully!")
                     st.rerun()
     else:
-        st.info("No achievements recorded today yet!")
-
+        st.info("No achievements found in selected date range!")
 
 # Main flow
 if st.session_state.user_id is None:

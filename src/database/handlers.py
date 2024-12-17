@@ -111,14 +111,16 @@ def delete_achievement(achievement_id, user_id):
     conn.close()
 
 
-def delete_achievements_by_category(category, user_id, date):
-    """Delete all achievements for a specific user and category on a specific date."""
+def delete_achievements_by_category(category, user_id, start_date, end_date):
+    """Delete all achievements for a specific user and category within a date range."""
     conn = get_database_connection()
     cur = conn.cursor()
     cur.execute("""
         DELETE FROM achievements 
-        WHERE user_id = %s AND description LIKE %s AND DATE(created_at) = %s
-    """, (user_id, f"{category}:%", date))
+        WHERE user_id = %s 
+        AND description LIKE %s 
+        AND DATE(created_at) BETWEEN DATE(%s) AND DATE(%s)
+    """, (user_id, f"{category}:%", start_date, end_date))
     conn.commit()
     cur.close()
     conn.close()
