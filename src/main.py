@@ -245,7 +245,7 @@ def main_app():
                 scrolling=True
             )
 
-    # Add "To sum up" section
+    # Update "To sum up" section
     st.subheader("To sum up")
     achievements = handlers.get_achievements(st.session_state.user_id)
     today = date.today()
@@ -268,16 +268,33 @@ def main_app():
 
     if categories:
         selected_category = st.selectbox("Select category", categories)
+        
+        # Display filtered achievements for selected category
+        category_achievements = [
+            achievement for achievement in filtered_achievements
+            if extract_group(achievement[1])[0] == selected_category
+        ]
+        
+        # Calculate total points for the category
+        total_points = sum(ach[2] for ach in category_achievements)
+        st.write(f"Total points for {selected_category}: {total_points}")
+        
+        # Display achievements with flags
+        for achievement_id, text, points, created_at in category_achievements:
+            _, achievement_text = extract_group(text)
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"**{achievement_text}**")
+                st.caption(f"Added: {adjust_time(created_at)}")
+            with col2:
+                color = st.session_state.group_colors.get(selected_category, '#4CAF50')
+                st.markdown(render_flag(points, color), unsafe_allow_html=True)
+
+        # Add summary input field below the achievements list
         summary_text = st.text_area("Write your summary")
 
         if st.button("Sum up"):
             if selected_category and summary_text:
-                # Calculate total points for the category within date range
-                total_points = sum(
-                    ach[2] for ach in filtered_achievements
-                    if extract_group(ach[1])[0] == selected_category
-                )
-
                 # Split text into individual achievements
                 summary_items = [item.strip()
                              for item in summary_text.split('\n') if item.strip()]
@@ -293,7 +310,6 @@ def main_app():
 
                     # Add new achievements with today's date
                     for i, item in enumerate(summary_items):
-                        # Add remaining points to first item
                         item_points = points_per_item + \
                             (remaining_points if i == 0 else 0)
                         handlers.add_achievement(
