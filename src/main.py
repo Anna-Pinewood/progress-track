@@ -2,11 +2,13 @@ import json
 import os
 from pathlib import Path
 import streamlit as st
-from datetime import date
+from datetime import date, datetime
 import database.handlers as handlers
 from streamlit_extras.let_it_rain import rain
 import random
 from streamlit_extras.stateful_button import button
+import threading
+import time
 from view.animations import show_achievement_animation, show_level_up_animation
 from view.render import create_daily_journey_html, render_flag, render_level_progress
 from view.style_and_content_consts import GROUP_COLORS
@@ -62,6 +64,47 @@ def login_form():
                 st.error(message)
 
 
+def generate_report_text(user_id):
+    achievements = handlers.get_achievements(user_id)
+    groups = {}
+
+    for achievement in achievements:
+        group_name, achievement_text = extract_group(achievement[1])
+        if group_name not in groups:
+            groups[group_name] = []
+        groups[group_name].append((achievement_text, achievement[2]))
+
+    text_content = "Мои достижения:\n\n"
+
+    for group_name in sorted(groups.keys()):
+        group_achievements = groups[group_name]
+        total_points = sum(points for _, points in group_achievements)
+        text_content += f"- {group_name} (Всего баллов: {total_points}):\n"
+        for achievement_text, points in group_achievements:
+            text_content += f"  - {achievement_text}\n"
+        text_content += "\n"
+    
+    return text_content
+
+def backup_report():
+    while True:
+        now = datetime.now()
+        if now.hour == 7 and now.minute == 0:
+            # Get all users and generate reports
+            users = handlers.get_all_users()
+            for user_id, username in users:
+                report_text = generate_report_text(user_id)
+                with open('/app/reports/report.txt', 'a', encoding='utf-8') as f:
+                    f.write(f"\n=== Report for {username} - {now.date()} ===\n")
+                    f.write(report_text)
+                    f.write("\n")
+            time.sleep(60)  # Wait a minute to avoid multiple writes
+        time.sleep(30)  # Check every 30 seconds
+
+# Start backup thread when app starts
+backup_thread = threading.Thread(target=backup_report, daemon=True)
+backup_thread.start()
+
 def main_app():
     st.title("Трекер достижений")
     # Quote section
@@ -108,34 +151,31 @@ def main_app():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Удалить все достижения"):
-            handlers.delete_all_achievements(st.session_state.user_id)
-            st.warning("Все достижения удалены!")
-            st.session_state.expanded_groups = set()
-            st.rerun()
+        # Add confirmation state to session if not exists
+        if 'confirm_delete' not in st.session_state:
+            st.session_state.confirm_delete = False
+
+        if not st.session_state.confirm_delete:
+            if st.button("Удалить все достижения"):
+                st.session_state.confirm_delete = True
+                st.rerun()
+        else:
+            st.warning("Вы уверены, что хотите удалить все достижения?")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Да, удалить"):
+                    handlers.delete_all_achievements(st.session_state.user_id)
+                    st.session_state.confirm_delete = False
+                    st.session_state.expanded_groups = set()
+                    st.rerun()
+            with col2:
+                if st.button("Отмена"):
+                    st.session_state.confirm_delete = False
+                    st.rerun()
 
     with col2:
         if st.button("📄 Сгенерировать отчёт"):
-            achievements = handlers.get_achievements(st.session_state.user_id)
-            groups = {}
-
-            for achievement in achievements:
-                group_name, achievement_text = extract_group(achievement[1])
-                if group_name not in groups:
-                    groups[group_name] = []
-                groups[group_name].append((achievement_text, achievement[2]))
-
-            text_content = "Мои достижения:\n\n"
-
-            # Calculate total points for each group
-            for group_name in sorted(groups.keys()):
-                group_achievements = groups[group_name]
-                total_points = sum(points for _, points in group_achievements)
-                text_content += f"- {group_name} (Всего баллов: {total_points}):\n"
-                for achievement_text, points in group_achievements:
-                    text_content += f"  - {achievement_text}\n"
-                text_content += "\n"
-
+            text_content = generate_report_text(st.session_state.user_id)
             with st.expander("Текст для копирования", expanded=True):
                 st.code(text_content, language=None)
                 st.button("Копировать", type="primary",
@@ -203,7 +243,7 @@ def main_app():
             for achievement_id, text, points, created_at in group_achievements:
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.write(f"**{text}**")
+                    st.write(f"{text}")
                     st.caption(f"Добавлено: {adjust_time(created_at)}")
                 with col2:
                     st.markdown(render_flag(points, color),

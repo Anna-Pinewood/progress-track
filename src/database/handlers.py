@@ -149,3 +149,13 @@ def get_user_level_info(user_id):
         'points_to_next': 60 - points_in_level,
         'total_points': total_points
     }
+
+
+def get_all_users():
+    """Return list of tuples (user_id, username) for all users"""
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username FROM users")
+    users = cursor.fetchall()
+    conn.close()
+    return users
