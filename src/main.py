@@ -79,7 +79,7 @@ def generate_report_text(user_id):
     for group_name in sorted(groups.keys()):
         group_achievements = groups[group_name]
         total_points = sum(points for _, points in group_achievements)
-        text_content += f"- {group_name} (Всего баллов: {total_points}):\n"
+        text_content += f"- {group_name}:\n"
         for achievement_text, points in group_achievements:
             text_content += f"  - {achievement_text}\n"
         text_content += "\n"
@@ -260,7 +260,7 @@ def main_app():
         else:
             st.session_state.expanded_groups.discard(group_name)
 
-        # In your main_app function, update the daily journey button handler:
+    # In your main_app function, update the daily journey button handler:
     if st.button("📅 Daily Journey"):
         achievements = handlers.get_achievements(st.session_state.user_id)
         today = date.today()
@@ -268,7 +268,8 @@ def main_app():
             {
                 "description": desc,
                 "points": points,
-                "created_at": adjust_time(created_at).isoformat()
+                "created_at": adjust_time(created_at).isoformat(),
+                "color": st.session_state.group_colors.get(extract_group(desc)[0], '#4CAF50')  # Get color for the group
             }
             for _, desc, points, created_at in achievements
             if created_at.date() == today

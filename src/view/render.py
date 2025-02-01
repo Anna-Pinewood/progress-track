@@ -1,4 +1,3 @@
-
 import json
 import random
 import streamlit as st
@@ -153,7 +152,7 @@ def create_daily_journey_html(achievements):
                             circle.setAttribute('cx', CENTER_X);
                             circle.setAttribute('cy', item.y);
                             circle.setAttribute('r', item.radius);
-                            circle.setAttribute('fill', '#60a5fa');
+                            circle.setAttribute('fill', item.color);  // Use the color from achievement data
                             circle.setAttribute('fill-opacity', '0.9');
                             g.appendChild(circle);
 
