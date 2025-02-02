@@ -12,7 +12,7 @@ import time
 from view.animations import show_achievement_animation, show_level_up_animation
 from view.render import create_daily_journey_html, render_flag, render_level_progress
 from view.style_and_content_consts import GROUP_COLORS
-from view.utils import adjust_time, extract_group, get_random_quote
+from view.utils import adjust_time, extract_group, get_random_quote, format_date
 
 st.set_page_config(page_title="Трекер достижений")
 
@@ -83,8 +83,9 @@ def generate_report_text(user_id):
         for achievement_text, points in group_achievements:
             text_content += f"  - {achievement_text}\n"
         text_content += "\n"
-    
+
     return text_content
+
 
 def backup_report():
     while True:
@@ -95,15 +96,18 @@ def backup_report():
             for user_id, username in users:
                 report_text = generate_report_text(user_id)
                 with open('/app/reports/report.txt', 'a', encoding='utf-8') as f:
-                    f.write(f"\n=== Report for {username} - {now.date()} ===\n")
+                    f.write(
+                        f"\n=== Report for {username} - {format_date(now.date())} ===\n")
                     f.write(report_text)
                     f.write("\n")
             time.sleep(60)  # Wait a minute to avoid multiple writes
         time.sleep(30)  # Check every 30 seconds
 
+
 # Start backup thread when app starts
 backup_thread = threading.Thread(target=backup_report, daemon=True)
 backup_thread.start()
+
 
 def main_app():
     st.title("Трекер достижений")
@@ -269,7 +273,8 @@ def main_app():
                 "description": desc,
                 "points": points,
                 "created_at": adjust_time(created_at).isoformat(),
-                "color": st.session_state.group_colors.get(extract_group(desc)[0], '#4CAF50')  # Get color for the group
+                # Get color for the group
+                "color": st.session_state.group_colors.get(extract_group(desc)[0], '#4CAF50')
             }
             for _, desc, points, created_at in achievements
             if created_at.date() == today
@@ -286,11 +291,52 @@ def main_app():
                 scrolling=True
             )
 
+    # Daily Report Section
+    st.subheader("📋 Daily Report")
+    report_date = st.date_input(
+        "Select date to view achievements", value=date.today())
+
+    # Get achievements for selected date
+    daily_achievements = [
+        achievement for achievement in achievements
+        if achievement[3].date() == report_date
+    ]
+
+    if not daily_achievements:
+        st.info(f"No achievements recorded on {format_date(report_date)}")
+    else:
+        # Generate report text for selected date
+        report_text = f"Achievements for {format_date(report_date)}:\n\n"
+        groups = {}
+
+        for achievement in daily_achievements:
+            group_name, achievement_text = extract_group(achievement[1])
+            if group_name not in groups:
+                groups[group_name] = []
+            groups[group_name].append((achievement_text, achievement[2]))
+
+        for group_name in sorted(groups.keys()):
+            group_achievements = groups[group_name]
+            total_points = sum(points for _, points in group_achievements)
+            report_text += f"- {group_name}:\n"
+            for achievement_text, points in group_achievements:
+                report_text += f"  - {achievement_text}\n"
+            report_text += "\n"
+
+        with st.expander("View Report", expanded=True):
+            st.code(report_text, language=None)
+            if st.button("📋 Copy Report", key="copy_daily_report"):
+                st.write(
+                    f'<script>navigator.clipboard.writeText(`{report_text}`)</script>',
+                    unsafe_allow_html=True
+                )
+                st.success("Report copied to clipboard!")
+
     # Update "To sum up" section
     st.subheader("To sum up")
     achievements = handlers.get_achievements(st.session_state.user_id)
     today = date.today()
-    
+
     # Add date range selection
     col1, col2 = st.columns(2)
     with col1:
@@ -300,26 +346,26 @@ def main_app():
 
     # Filter achievements by date range
     filtered_achievements = [
-        achievement for achievement in achievements 
+        achievement for achievement in achievements
         if start_date <= achievement[3].date() <= end_date
     ]
-    
-    categories = list(set(extract_group(achievement[1])[0] 
-                     for achievement in filtered_achievements))
+
+    categories = list(set(extract_group(achievement[1])[0]
+                          for achievement in filtered_achievements))
 
     if categories:
         selected_category = st.selectbox("Select category", categories)
-        
+
         # Display filtered achievements for selected category
         category_achievements = [
             achievement for achievement in filtered_achievements
             if extract_group(achievement[1])[0] == selected_category
         ]
-        
+
         # Calculate total points for the category
         total_points = sum(ach[2] for ach in category_achievements)
         st.write(f"Total points for {selected_category}: {total_points}")
-        
+
         # Display achievements with flags
         for achievement_id, text, points, created_at in category_achievements:
             _, achievement_text = extract_group(text)
@@ -328,7 +374,8 @@ def main_app():
                 st.write(f"**{achievement_text}**")
                 st.caption(f"Added: {adjust_time(created_at)}")
             with col2:
-                color = st.session_state.group_colors.get(selected_category, '#4CAF50')
+                color = st.session_state.group_colors.get(
+                    selected_category, '#4CAF50')
                 st.markdown(render_flag(points, color), unsafe_allow_html=True)
 
         # Add summary input field below the achievements list
@@ -338,7 +385,7 @@ def main_app():
             if selected_category and summary_text:
                 # Split text into individual achievements
                 summary_items = [item.strip()
-                             for item in summary_text.split('\n') if item.strip()]
+                                 for item in summary_text.split('\n') if item.strip()]
 
                 if summary_items:
                     # Delete old achievements in the category for selected date range
@@ -360,6 +407,7 @@ def main_app():
                     st.rerun()
     else:
         st.info("No achievements found in selected date range!")
+
 
 # Main flow
 if st.session_state.user_id is None:

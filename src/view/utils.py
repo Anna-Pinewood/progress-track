@@ -31,3 +31,20 @@ def extract_group(description):
     if ":" in description and description.split(":")[0].strip().isupper():
         return description.split(":")[0].strip(), description.split(":", 1)[1].strip()
     return "ДРУГОЕ", description
+
+
+WEEKDAYS_RU = {
+    0: 'Понедельник',
+    1: 'Вторник',
+    2: 'Среда',
+    3: 'Четверг',
+    4: 'Пятница',
+    5: 'Суббота',
+    6: 'Воскресенье'
+}
+
+
+def format_date(date_obj):
+    """Format date as DD.MM.YYYY, Weekday in Russian"""
+    weekday = WEEKDAYS_RU[date_obj.weekday()]
+    return f"{date_obj.strftime('%d.%m.%Y')}, {weekday}"
