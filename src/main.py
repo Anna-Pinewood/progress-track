@@ -16,6 +16,7 @@ from view.utils import adjust_time, extract_group, get_random_quote, format_date
 
 st.set_page_config(page_title="Трекер достижений")
 
+
 # Initialize session state
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
@@ -136,13 +137,34 @@ def main_app():
         st.rerun()
 
     with st.form(f"achievement_form_{st.session_state.form_key}"):
-        description = st.text_area(
-            "Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}", height=70)
-        points = st.slider("Оценка вклада", min_value=5, max_value=50,
-                           value=15, key=f"points_{st.session_state.form_key}")
+        description = st.text_area("Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}", height=70)
+        
+        # Extract group name if available
+        group_name = None
+        if description:
+            group_name, _ = extract_group(description)
+        
+        # Create two columns: one for points and one for color picker
+        col_slider, col_color = st.columns(2)
+        with col_slider:
+            points = st.slider("Оценка вклада", min_value=5, max_value=50, value=15, key=f"points_{st.session_state.form_key}")
+        with col_color:
+            if group_name:
+                default_color = st.session_state.group_colors.get(group_name, random.choice(GROUP_COLORS))
+                label = f"Выберите цвет для группы '{group_name}'"
+            else:
+                default_color = random.choice(GROUP_COLORS)
+                label = "Выберите цвет (будет применён при наличии группы)"
+            selected_color = st.color_picker(label, default_color, key=f"color_{st.session_state.form_key}")
+        
         submitted = st.form_submit_button("Добавить достижение")
-
+    
     if submitted and description:
+        # Update group color only if a group name is detected
+        if group_name:
+            current = st.session_state.group_colors.get(group_name)
+            if current is None or selected_color != current:
+                st.session_state.group_colors[group_name] = selected_color
         handlers.add_achievement(description, points, st.session_state.user_id)
         st.session_state.show_animation = points
         st.session_state.form_key += 1
