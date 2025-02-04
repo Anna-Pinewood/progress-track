@@ -52,6 +52,8 @@ def login_form():
             user_id = handlers.verify_user(username, password)
             if user_id:
                 st.session_state.user_id = user_id
+                # Load saved colors after login
+                st.session_state.group_colors = handlers.get_group_colors(user_id)
                 st.success("Успешный вход!")
                 st.rerun()
             else:
@@ -137,38 +139,53 @@ def main_app():
         st.rerun()
 
     with st.form(f"achievement_form_{st.session_state.form_key}"):
-        description = st.text_area("Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}", height=70)
-        
+        description = st.text_area(
+            "Ваш вклад в ваши цели", key=f"desc_{st.session_state.form_key}", height=70)
+
+        points = st.slider("Оценка вклада", min_value=5, max_value=50,
+                           value=15, key=f"points_{st.session_state.form_key}")
+        submitted = st.form_submit_button("Добавить достижение")
+
+    if submitted and description:
         # Extract group name if available
         group_name = None
         if description:
             group_name, _ = extract_group(description)
-        
-        # Create two columns: one for points and one for color picker
-        col_slider, col_color = st.columns(2)
-        with col_slider:
-            points = st.slider("Оценка вклада", min_value=5, max_value=50, value=15, key=f"points_{st.session_state.form_key}")
-        with col_color:
-            if group_name:
-                default_color = st.session_state.group_colors.get(group_name, random.choice(GROUP_COLORS))
-                label = f"Выберите цвет для группы '{group_name}'"
-            else:
-                default_color = random.choice(GROUP_COLORS)
-                label = "Выберите цвет (будет применён при наличии группы)"
-            selected_color = st.color_picker(label, default_color, key=f"color_{st.session_state.form_key}")
-        
-        submitted = st.form_submit_button("Добавить достижение")
-    
-    if submitted and description:
-        # Update group color only if a group name is detected
-        if group_name:
-            current = st.session_state.group_colors.get(group_name)
-            if current is None or selected_color != current:
-                st.session_state.group_colors[group_name] = selected_color
+            
+        # If this is a new group, assign a random color
+        if group_name and group_name not in st.session_state.group_colors:
+            available_colors = set(GROUP_COLORS) - set(st.session_state.group_colors.values())
+            new_color = random.choice(list(available_colors) if available_colors else GROUP_COLORS)
+            st.session_state.group_colors[group_name] = new_color
+            handlers.save_group_color(st.session_state.user_id, group_name, new_color)
+            
         handlers.add_achievement(description, points, st.session_state.user_id)
         st.session_state.show_animation = points
         st.session_state.form_key += 1
         st.rerun()
+
+    # Add Group Color Management section
+    existing_groups = set()
+    achievements = handlers.get_achievements(st.session_state.user_id)
+    for achievement in achievements:
+        group_name, _ = extract_group(achievement[1])
+        existing_groups.add(group_name)
+
+    if existing_groups:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            selected_group = st.selectbox("Выберите группу", sorted(existing_groups))
+        with col2:
+            current_color = st.session_state.group_colors.get(selected_group, GROUP_COLORS[0])
+            new_color = st.color_picker("Выберите цвет", current_color)
+            
+        if new_color != current_color:
+            st.session_state.group_colors[selected_group] = new_color
+            # Save color to database
+            handlers.save_group_color(st.session_state.user_id, selected_group, new_color)
+            st.rerun()
+    else:
+        st.info("Добавьте достижения чтобы управлять цветами групп")
 
     # Show animation if needed
     if st.session_state.show_animation is not None:

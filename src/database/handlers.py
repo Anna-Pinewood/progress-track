@@ -14,6 +14,19 @@ def get_database_connection():
     )
 
 
+def execute_query(query, params=None, fetch=False):
+    conn = get_database_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(query, params)
+        result = cur.fetchall() if fetch else None
+        conn.commit()
+        return result
+    finally:
+        cur.close()
+        conn.close()
+
+
 def hash_password(password):
     """Hash password using SHA-256."""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -159,3 +172,35 @@ def get_all_users():
     users = cursor.fetchall()
     conn.close()
     return users
+
+
+def create_group_colors_table():
+    query = '''
+    CREATE TABLE IF NOT EXISTS group_colors (
+        user_id INTEGER,
+        group_name TEXT,
+        color TEXT,
+        PRIMARY KEY (user_id, group_name),
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+    '''
+    execute_query(query)
+
+
+def save_group_color(user_id, group_name, color):
+    query = '''
+    INSERT INTO group_colors (user_id, group_name, color)
+    VALUES (%s, %s, %s)
+    ON CONFLICT (user_id, group_name) 
+    DO UPDATE SET color = EXCLUDED.color
+    '''
+    execute_query(query, (user_id, group_name, color))
+
+
+def get_group_colors(user_id):
+    query = 'SELECT group_name, color FROM group_colors WHERE user_id = %s'
+    results = execute_query(query, (user_id,), fetch=True)
+    return {row[0]: row[1] for row in results}
+
+# Add this to your initialization code
+create_group_colors_table()
