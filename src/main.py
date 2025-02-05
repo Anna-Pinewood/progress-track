@@ -12,7 +12,7 @@ import time
 from view.animations import show_achievement_animation, show_level_up_animation
 from view.render import create_daily_journey_html, render_flag, render_level_progress
 from view.style_and_content_consts import GROUP_COLORS
-from view.utils import adjust_time, extract_group, get_random_quote, format_date
+from view.utils import extract_group, get_random_quote, format_date, format_datetime
 
 st.set_page_config(page_title="Трекер достижений")
 
@@ -53,7 +53,8 @@ def login_form():
             if user_id:
                 st.session_state.user_id = user_id
                 # Load saved colors after login
-                st.session_state.group_colors = handlers.get_group_colors(user_id)
+                st.session_state.group_colors = handlers.get_group_colors(
+                    user_id)
                 st.success("Успешный вход!")
                 st.rerun()
             else:
@@ -151,14 +152,17 @@ def main_app():
         group_name = None
         if description:
             group_name, _ = extract_group(description)
-            
+
         # If this is a new group, assign a random color
         if group_name and group_name not in st.session_state.group_colors:
-            available_colors = set(GROUP_COLORS) - set(st.session_state.group_colors.values())
-            new_color = random.choice(list(available_colors) if available_colors else GROUP_COLORS)
+            available_colors = set(GROUP_COLORS) - \
+                set(st.session_state.group_colors.values())
+            new_color = random.choice(
+                list(available_colors) if available_colors else GROUP_COLORS)
             st.session_state.group_colors[group_name] = new_color
-            handlers.save_group_color(st.session_state.user_id, group_name, new_color)
-            
+            handlers.save_group_color(
+                st.session_state.user_id, group_name, new_color)
+
         handlers.add_achievement(description, points, st.session_state.user_id)
         st.session_state.show_animation = points
         st.session_state.form_key += 1
@@ -174,15 +178,18 @@ def main_app():
     if existing_groups:
         col1, col2 = st.columns([2, 1])
         with col1:
-            selected_group = st.selectbox("Выберите группу", sorted(existing_groups))
+            selected_group = st.selectbox(
+                "Выберите группу", sorted(existing_groups))
         with col2:
-            current_color = st.session_state.group_colors.get(selected_group, GROUP_COLORS[0])
+            current_color = st.session_state.group_colors.get(
+                selected_group, GROUP_COLORS[0])
             new_color = st.color_picker("Выберите цвет", current_color)
-            
+
         if new_color != current_color:
             st.session_state.group_colors[selected_group] = new_color
             # Save color to database
-            handlers.save_group_color(st.session_state.user_id, selected_group, new_color)
+            handlers.save_group_color(
+                st.session_state.user_id, selected_group, new_color)
             st.rerun()
     else:
         st.info("Добавьте достижения чтобы управлять цветами групп")
@@ -287,7 +294,7 @@ def main_app():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.write(f"{text}")
-                    st.caption(f"Добавлено: {adjust_time(created_at)}")
+                    st.caption(f"Добавлено: {format_datetime(created_at)}")
                 with col2:
                     st.markdown(render_flag(points, color),
                                 unsafe_allow_html=True)
@@ -311,7 +318,7 @@ def main_app():
             {
                 "description": desc,
                 "points": points,
-                "created_at": adjust_time(created_at).isoformat(),
+                "created_at": format_datetime(created_at).isoformat(),
                 # Get color for the group
                 "color": st.session_state.group_colors.get(extract_group(desc)[0], '#4CAF50')
             }
@@ -411,7 +418,7 @@ def main_app():
             col1, col2 = st.columns([4, 1])
             with col1:
                 st.write(f"**{achievement_text}**")
-                st.caption(f"Added: {adjust_time(created_at)}")
+                st.caption(f"Added: {format_datetime(created_at)}")
             with col2:
                 color = st.session_state.group_colors.get(
                     selected_category, '#4CAF50')
