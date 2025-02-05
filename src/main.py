@@ -318,8 +318,7 @@ def main_app():
             {
                 "description": desc,
                 "points": points,
-                "created_at": format_datetime(created_at).isoformat(),
-                # Get color for the group
+                "created_at": created_at.strftime("%H:%M"),
                 "color": st.session_state.group_colors.get(extract_group(desc)[0], '#4CAF50')
             }
             for _, desc, points, created_at in achievements

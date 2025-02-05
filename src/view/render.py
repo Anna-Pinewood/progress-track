@@ -141,10 +141,7 @@ def create_daily_journey_html(achievements):
                             time.setAttribute('text-anchor', 'end');
                             time.style.fontSize = '14px';
                             time.style.fill = '#64748b';
-                            time.textContent = new Date(item.created_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
+                            time.textContent = item.created_at;  // Use the string directly
                             g.appendChild(time);
 
                             // Add circle
