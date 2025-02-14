@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 import streamlit as st
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import database.handlers as handlers
 from streamlit_extras.let_it_rain import rain
 import random
@@ -338,20 +338,42 @@ def main_app():
 
     # Daily Report Section
     st.subheader("📋 Daily Report")
-    report_date = st.date_input(
-        "Select date to view achievements", value=date.today())
+    
+    # Date navigation
+    col1, col2, col3 = st.columns([1, 3, 1])
+    
+    with col1:
+        if st.button("◀"):
+            if 'report_date' in st.session_state:
+                st.session_state.report_date = st.session_state.report_date - timedelta(days=1)
+            else:
+                st.session_state.report_date = date.today() - timedelta(days=1)
+            
+    with col2:
+        if 'report_date' not in st.session_state:
+            st.session_state.report_date = date.today()
+        report_date = st.date_input(
+            "Select date to view achievements", 
+            value=st.session_state.report_date,
+            key="report_date_input"
+        )
+        st.session_state.report_date = report_date
+        
+    with col3:
+        if st.button("▶"):
+            st.session_state.report_date = st.session_state.report_date + timedelta(days=1)
 
     # Get achievements for selected date
     daily_achievements = [
         achievement for achievement in achievements
-        if achievement[3].date() == report_date
+        if achievement[3].date() == st.session_state.report_date
     ]
 
     if not daily_achievements:
-        st.info(f"No achievements recorded on {format_date(report_date)}")
+        st.info(f"No achievements recorded on {format_date(st.session_state.report_date)}")
     else:
         # Generate report text for selected date
-        report_text = f"Achievements for {format_date(report_date)}:\n\n"
+        report_text = f"Achievements for {format_date(st.session_state.report_date)}:\n\n"
         groups = {}
 
         for achievement in daily_achievements:
@@ -369,6 +391,18 @@ def main_app():
             report_text += "\n"
 
         with st.expander("View Report", expanded=True):
+            # Apply text wrapping using CSS
+            st.markdown(
+                """
+                <style>
+                    .stCode {
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
+                    }
+                </style>
+                """, 
+                unsafe_allow_html=True
+            )
             st.code(report_text, language=None)
             if st.button("📋 Copy Report", key="copy_daily_report"):
                 st.write(
