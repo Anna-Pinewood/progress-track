@@ -93,7 +93,7 @@ def get_achievements(user_id):
         SELECT id, description, points, created_at 
         FROM achievements 
         WHERE user_id = %s 
-        ORDER BY created_at DESC
+        ORDER BY created_at ASC
     """, (user_id,))
     achievements = cur.fetchall()
     cur.close()

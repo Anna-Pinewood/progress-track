@@ -55,6 +55,9 @@ def render_level_progress(level_info):
 
 def create_daily_journey_html(achievements):
     """Create an HTML string for the daily journey visualization."""
+    # Sort achievements by created_at in ascending order (oldest first)
+    sorted_achievements = sorted(achievements, key=lambda x: x['created_at'])
+    
     html = """
             <div id="daily-journey" style="font-family: sans-serif; padding: 20px;">
                 <script>
@@ -177,8 +180,8 @@ def create_daily_journey_html(achievements):
             </div>
             """
 
-    # Insert the achievements data
-    achievements_json = json.dumps(achievements)
+    # Insert the sorted achievements data
+    achievements_json = json.dumps(sorted_achievements)
     html = html.replace('ACHIEVEMENTS_PLACEHOLDER', achievements_json)
 
     return html
