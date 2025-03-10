@@ -68,23 +68,30 @@ def login_form():
                 st.error(message)
 
 
-def generate_report_text(user_id):
+def generate_report_text(user_id, start_date=None):
     achievements = handlers.get_achievements(user_id)
     groups = {}
 
     for achievement in achievements:
+        # Skip achievements that are earlier than the start_date if provided
+        if start_date and achievement[3].date() < start_date:
+            continue
+
         group_name, achievement_text = extract_group(achievement[1])
         if group_name not in groups:
             groups[group_name] = []
-        groups[group_name].append((achievement_text, achievement[2]))
+        groups[group_name].append((achievement_text, achievement[2], achievement[3]))
 
-    text_content = "Мои достижения:\n\n"
+    if start_date:
+        text_content = f"Мои достижения с {format_date(start_date)}:\n\n"
+    else:
+        text_content = "Мои достижения:\n\n"
 
     for group_name in sorted(groups.keys()):
         group_achievements = groups[group_name]
-        total_points = sum(points for _, points in group_achievements)
+        total_points = sum(points for _, points, _ in group_achievements)
         text_content += f"- {group_name}:\n"
-        for achievement_text, points in group_achievements:
+        for achievement_text, points, _ in group_achievements:
             text_content += f"  - {achievement_text}\n"
         text_content += "\n"
 
@@ -223,16 +230,31 @@ def main_app():
                     st.session_state.confirm_delete = False
                     st.rerun()
 
-    with col2:
-        if st.button("📄 Сгенерировать отчёт"):
-            text_content = generate_report_text(st.session_state.user_id)
-            with st.expander("Текст для копирования", expanded=True):
-                st.code(text_content, language=None)
-                st.button("Копировать", type="primary",
-                          on_click=lambda: st.write(
-                              f'<script>navigator.clipboard.writeText(`{text_content}`)</script>',
-                              unsafe_allow_html=True
-                          ))
+    # Move the report generation under the delete section (outside both columns)
+    st.subheader("Генерация отчёта")
+    report_col1, report_col2 = st.columns([3, 1])
+
+    with report_col1:
+        report_start_date = st.date_input(
+            "С даты (опционально)",
+            value=None,
+            key="report_start_date",
+            help="Оставьте пустым для всей истории"
+        )
+
+    with report_col2:
+        generate_report = st.button("📄 Сгенерировать отчёт")
+
+    if generate_report:
+        # Pass the selected start date (or None if not selected)
+        text_content = generate_report_text(st.session_state.user_id, report_start_date)
+        with st.expander("Текст для копирования", expanded=True):
+            st.code(text_content, language=None)
+            st.button("Копировать", type="primary",
+                      on_click=lambda: st.write(
+                          f'<script>navigator.clipboard.writeText(`{text_content}`)</script>',
+                          unsafe_allow_html=True
+                      ))
 
     achievements = handlers.get_achievements(st.session_state.user_id)
 
@@ -338,27 +360,27 @@ def main_app():
 
     # Daily Report Section
     st.subheader("📋 Daily Report")
-    
+
     # Date navigation
     col1, col2, col3 = st.columns([1, 3, 1])
-    
+
     with col1:
         if st.button("◀"):
             if 'report_date' in st.session_state:
                 st.session_state.report_date = st.session_state.report_date - timedelta(days=1)
             else:
                 st.session_state.report_date = date.today() - timedelta(days=1)
-            
+
     with col2:
         if 'report_date' not in st.session_state:
             st.session_state.report_date = date.today()
         report_date = st.date_input(
-            "Select date to view achievements", 
+            "Select date to view achievements",
             value=st.session_state.report_date,
             key="report_date_input"
         )
         st.session_state.report_date = report_date
-        
+
     with col3:
         if st.button("▶"):
             st.session_state.report_date = st.session_state.report_date + timedelta(days=1)
@@ -400,7 +422,7 @@ def main_app():
                         word-wrap: break-word !important;
                     }
                 </style>
-                """, 
+                """,
                 unsafe_allow_html=True
             )
             st.code(report_text, language=None)
@@ -476,7 +498,7 @@ def main_app():
                     remaining_points = total_points % len(summary_items)
 
                     # Add new achievements with today's date
-                    for i, item in enumerate(summary_items):
+                    for i, item in summary_items:
                         item_points = points_per_item + \
                             (remaining_points if i == 0 else 0)
                         handlers.add_achievement(
